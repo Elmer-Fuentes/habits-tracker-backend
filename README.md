@@ -16,3 +16,9 @@ Proyecto inicial para la gestión de hábitos, desarrollado con **Node.js**, **E
    Ejecutar el siguiente comando para poner en marcha la aplicación:
    ```bash
    npm start
+
+
+   ## Endpoints desarrollados
+- **GET /habits**: Lista todos los hábitos.
+- **POST /habits**: Crea un nuevo hábito (requiere title y description).
+- **DELETE /habits/:id**: Elimina un hábito por su ID único.
