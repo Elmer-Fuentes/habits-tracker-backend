@@ -47,3 +47,30 @@ El proyecto se organiza en dos carpetas principales para separar el servidor de 
 
 ## Rama de Entrega Actual
 * Todo el progreso de la segunda fase se encuentra en la rama: **`semana2`**.
+
+
+### Semana 3: Diseño Avanzado con Tailwind y Persistencia Visual
+En esta fase se transformó la interfaz de usuario de un diseño básico a uno profesional y se optimizó el flujo de datos con Redux.
+
+* **Tailwind CSS Integration**: 
+    * Configuración de `globals.css` con directivas `@tailwind`.
+    * Diseño "Mobile First" y responsivo utilizando clases de utilidad.
+    * Uso de sombras (`shadow-xl`), bordes redondeados (`rounded-3xl`) y tipografía moderna (`font-sans`).
+* **Redux Toolkit (Mock Data)**:
+    * Implementación de datos de prueba (*Initial State*) para asegurar la visualización sin dependencia del backend.
+    * Uso de `useSelector` para mapear dinámicamente la lista de hábitos en el componente principal.
+* **Componentes de UI Requeridos**:
+    * **Barra de Progreso**: Implementada con contenedores dinámicos y transiciones suaves (`transition-all`).
+    * **Botón "Done"**: Integración estética del botón de acción en cada tarjeta de hábito.
+    * **Indicadores de Estado**: Etiquetas visuales ("ACTIVO") para identificar hábitos vigentes.
+* **Arquitectura de React (App Router)**:
+    * Creación de un `Providers.tsx` para encapsular el contexto de Redux en el `layout.tsx`.
+
+#### Tecnologías Incorporadas (Nuevos Paquetes)
+* `tailwindcss`, `postcss`, `autoprefixer`: Motor de estilos.
+* `@reduxjs/toolkit` & `react-redux`: Gestión de estado global.
+
+---
+
+## Rama de Entrega Actual
+* Todo el progreso de la tercera fase se encuentra en la rama: **`Semana3`**.
