@@ -74,3 +74,46 @@ En esta fase se transformó la interfaz de usuario de un diseño básico a uno p
 
 ## Rama de Entrega Actual
 * Todo el progreso de la tercera fase se encuentra en la rama: **`Semana3`**.
+
+
+### Semana 4: Autenticación, Racha de Días y Barra de Progreso Dinámica
+En esta fase se implementó la lógica completa de racha de días, autenticación de usuarios con JWT y una interfaz rediseñada con tema oscuro.
+
+#### Backend
+* **Modelo `Habit.js` actualizado**:
+  * Se agregaron los campos `streak` (días consecutivos), `completedDays` (total acumulado) y `lastCompletedAt` (última fecha de completado).
+* **Nuevo endpoint `PUT /habits/:id/done`**:
+  * Implementa la lógica de racha: si el hábito fue completado ayer, incrementa `streak`; si no, lo reinicia a 1.
+  * Evita doble registro si el hábito ya fue marcado el mismo día.
+* **Autenticación de usuarios (`users.js`)**:
+  * `POST /users/register`: Registra un nuevo usuario con contraseña hasheada usando **bcryptjs**.
+  * `POST /users/login`: Valida credenciales y retorna un **token JWT** con expiración de 24 horas.
+  * La clave secreta JWT se lee desde la variable de entorno `JWT_SECRET`.
+
+#### Frontend
+* **`habitsSlice.ts` actualizado**:
+  * Corrección del endpoint a `PUT /habits/:id/done`.
+  * Se agregó la acción `deleteHabit` para eliminar hábitos desde la UI.
+  * Manejo de estados `loading`, `succeeded` y `failed` para cada acción asíncrona.
+* **`page.tsx` (página principal) rediseñada**:
+  * Tema oscuro con gradiente y tarjetas con efecto glassmorphism.
+  * **Barra de progreso dinámica**: cambia de color según el avance (🔴 rojo → 🟡 amarillo → 🟢 verde).
+  * **Botón ✓ Done**: conectado al backend, muestra mensaje de feedback con la racha actualizada.
+  * Emojis motivacionales según el nivel de racha: 😴 🌱 🔥 ⚡ 🏆.
+  * Botón para navegar al Login (`→ Ir al Login`).
+  * Botón para eliminar hábitos individuales.
+* **`Login/page.tsx` (nueva página)**:
+  * Formulario con tabs para **Iniciar Sesión** y **Registrarse** en una sola vista.
+  * Guarda el token JWT en `localStorage` tras el login exitoso.
+  * Redirige automáticamente a la página principal tras autenticarse.
+  * Botón `← Volver a Habits Tracker` para navegar sin necesidad de autenticarse.
+  * Mensajes de error y éxito con diseño visual diferenciado.
+* **Documentación con `#region`**:
+  * Todos los archivos `.ts`, `.tsx` y `.js` están organizados con bloques `#region` / `#endregion` y comentarios descriptivos por sección.
+
+#### Tecnologías Incorporadas
+* `bcryptjs`: Hash seguro de contraseñas.
+* `jsonwebtoken`: Generación y verificación de tokens JWT.
+* `next/navigation` (`useRouter`): Navegación programática entre páginas en Next.js.
+
+> Rama de entrega: **`semana4`**
