@@ -29,7 +29,7 @@ var app = express();
 
 // #region Middlewares
 
-// CORS debe configurarse antes de definir las rutas
+// CORS debe configurarse antes de definir las rutas para evitar bloqueos
 app.use(cors());
 
 // Motor de vistas
@@ -47,8 +47,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // #region Rutas
 
-app.use('/', indexRouter);       // Rutas de hábitos
-app.use('/users', usersRouter);  // Rutas de usuarios
+app.use('/', indexRouter);       // Rutas de hábitos (Ahora protegidas por auth)
+app.use('/users', usersRouter);  // Rutas de usuarios (Registro y Login)
 
 // #endregion
 

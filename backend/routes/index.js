@@ -2,12 +2,14 @@
 // Archivo: index.js
 // Descripción: Rutas principales de la API REST para hábitos.
 //              Incluye lógica de racha de días (streak).
+//              Actualizado: Protección con JWT y reinicio de racha (Semana 5).
 // Autor: Habits Tracker
 // ============================================================
 
 var express = require('express');
 var router = express.Router();
 const Habit = require('../models/Habit');
+const auth = require('../middleware/auth'); // Requisito Punto 21: Identificación y Autorización
 
 // #region Utilidades internas
 
@@ -24,10 +26,10 @@ function isDifferentDay(date1, date2) {
 }
 
 /**
- * Verifica si una fecha fue ayer respecto a hoy.
- * Se usa para mantener la racha activa.
+ * Verifica si una fecha fue exactamente ayer respecto a hoy.
+ * Se usa para mantener la racha activa según el método de 66 días.
  * @param {Date} date - Fecha a verificar
- * @returns {boolean} true si la fecha es de ayer
+ * @returns {boolean} true si la fecha fue ayer
  */
 function isYesterday(date) {
   const yesterday = new Date();
@@ -48,12 +50,13 @@ router.get('/', function (req, res, next) {
 
 // #endregion
 
-// #region CRUD de Hábitos
+// #region CRUD de Hábitos (Protegidos con Middleware auth - Punto 21)
 
-// GET: Obtener todos los hábitos
-router.get('/habits', async (req, res) => {
+// GET: Obtener solo los hábitos del usuario autenticado
+router.get('/habits', auth, async (req, res) => {
   try {
-    const habits = await Habit.find();
+    // Solo devolvemos los hábitos que pertenecen al usuario del token
+    const habits = await Habit.find({ user: req.user.userId });
     res.json(habits);
   } catch (err) {
     console.error('Error al obtener hábitos:', err);
@@ -61,11 +64,18 @@ router.get('/habits', async (req, res) => {
   }
 });
 
-// POST: Crear un nuevo hábito
-router.post('/habits', async (req, res) => {
+// POST: Crear un nuevo hábito vinculado al usuario actual (Punto 24)
+router.post('/habits', auth, async (req, res) => {
   try {
     const { title, description } = req.body;
-    const habit = new Habit({ title, description });
+    
+    // Vinculación automática: se asigna el userId del middleware auth
+    const habit = new Habit({ 
+      title, 
+      description,
+      user: req.user.userId 
+    });
+
     await habit.save();
     res.json(habit);
   } catch (err) {
@@ -74,56 +84,61 @@ router.post('/habits', async (req, res) => {
   }
 });
 
-// DELETE: Eliminar un hábito por ID
-router.delete('/habits/:id', async (req, res) => {
+// DELETE: Eliminar un hábito (Verificando propiedad para seguridad)
+router.delete('/habits/:id', auth, async (req, res) => {
   try {
-    await Habit.findByIdAndDelete(req.params.id);
+    const habit = await Habit.findOneAndDelete({ 
+      _id: req.params.id, 
+      user: req.user.userId 
+    });
+
+    if (!habit) {
+      return res.status(404).json({ message: 'Habit not found or unauthorized' });
+    }
+
     res.json({ message: 'Habit deleted' });
   } catch (err) {
     console.error('Error al eliminar hábito:', err);
-    res.status(500).json({ message: 'Habit not found', detail: err.message });
+    res.status(500).json({ message: 'Error deleting habit', detail: err.message });
   }
 });
 
 // #endregion
 
-// #region Lógica de racha (Streak / Done)
+// #region Lógica de racha y completado (Punto 18)
 
 /**
  * PUT /habits/:id/done
- * Marca un hábito como completado hoy.
- * 
- * Reglas de racha:
- *  - Si ya fue marcado hoy → no hace nada (evita duplicados)
- *  - Si fue marcado ayer   → incrementa la racha (+1)
- *  - Si no fue marcado ayer → reinicia la racha a 1
- *  - completedDays siempre incrementa (total acumulado)
+ * Marca un hábito como completado hoy y gestiona la racha.
  */
-router.put('/habits/:id/done', async (req, res) => {
+router.put('/habits/:id/done', auth, async (req, res) => {
   try {
-    const habit = await Habit.findById(req.params.id);
+    const habit = await Habit.findOne({ 
+      _id: req.params.id, 
+      user: req.user.userId 
+    });
 
     if (!habit) {
-      return res.status(404).json({ message: 'Habit not found' });
+      return res.status(404).json({ message: 'Habit not found or unauthorized' });
     }
 
     const now = new Date();
 
-    // Evitar marcar dos veces el mismo día
+    // 1. Evitar marcar dos veces el mismo día (Idempotencia)
     if (habit.lastCompletedAt && !isDifferentDay(habit.lastCompletedAt, now)) {
       return res.status(400).json({ message: 'Habit already completed today' });
     }
 
-    // Calcular nueva racha
+    // 2. Lógica de racha activa vs reinicio (Requisito Punto 18)
     if (habit.lastCompletedAt && isYesterday(habit.lastCompletedAt)) {
-      // Fue completado ayer → continúa la racha
+      // Si se completó ayer, la racha continúa
       habit.streak += 1;
     } else {
-      // Se perdió la racha o es el primer día → reinicia a 1
+      // Si NO se marcó ayer, el conteo se reinicia a 1 (Punto 18)
       habit.streak = 1;
     }
 
-    // Actualizar campos
+    // 3. Actualizar campos de seguimiento
     habit.completedDays += 1;
     habit.lastCompletedAt = now;
 
@@ -144,5 +159,4 @@ router.put('/habits/:id/done', async (req, res) => {
 
 // #endregion
 
-// NOTA: Este export siempre debe ir al final del archivo
 module.exports = router;

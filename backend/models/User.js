@@ -2,23 +2,19 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true 
-  },
-  password: { 
-    type: String, 
-    required: true 
-  }
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true }
 });
 
-// Esta función aplica el "hash" a la contraseña justo antes de guardarla en MongoDB
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+//#region Hook Pre-Save (CORREGIDO)
+userSchema.pre('save', async function() {
+  if (!this.isModified('password')) return;
+  
+  // Generar salt y hashear de forma asíncrona
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-  next();
+  // NO LLAMES A next(), al ser async Mongoose sabe cuándo termina.
 });
+//#endregion
 
 module.exports = mongoose.model('User', userSchema);

@@ -5,6 +5,7 @@
 // Descripción: Página principal del Habits Tracker.
 //              Muestra lista de hábitos, barra de progreso,
 //              botón Done y navegación al Login.
+//              Actualizado: Protección de ruta y despacho con JWT (Semana 5).
 // ============================================================
 
 //#region 1. IMPORTACIONES
@@ -25,17 +26,26 @@ export default function Home() {
   const [description, setDescription] = useState('');
   const [doneMessage, setDoneMessage] = useState<string | null>(null);
 
-  // Carga los hábitos desde MongoDB al iniciar la página
+  /**
+   * Requisito Semana 5: 
+   * Verifica si existe un token antes de pedir los hábitos.
+   * Si no hay token, redirige al Login. ]
+   */
   useEffect(() => {
-    dispatch(fetchHabits());
-  }, [dispatch]);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/Login');
+    } else {
+      dispatch(fetchHabits());
+    }
+  }, [dispatch, router]);
   //#endregion
 
   //#region 3. LÓGICA DE NEGOCIO
 
   /**
    * Crea un nuevo hábito y limpia el formulario.
-   * Solo se ejecuta si el título no está vacío.
+   * El backend ahora vincula automáticamente este hábito al usuario del token. 
    */
   const handleAddHabit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,8 +58,6 @@ export default function Home() {
 
   /**
    * Marca un hábito como completado hoy.
-   * Muestra mensaje de feedback según la respuesta del backend.
-   * El backend aplica la lógica de racha (streak).
    */
   const handleDone = async (habitId: string) => {
     const result = await dispatch(markHabitDone(habitId));
@@ -63,10 +71,7 @@ export default function Home() {
   };
 
   /**
-   * Determina el color de la barra de progreso según la racha.
-   * Rojo   → 0 a 32% (inicio del hábito)
-   * Amarillo → 33 a 65% (progreso medio)
-   * Verde  → 66 a 100% (cerca o en la meta)
+   * Determina el color de la barra de progreso según la racha (0 a 66 días). [cite: 19]
    */
   const getBarColor = (streak: number): string => {
     const pct = (streak / 66) * 100;
@@ -75,15 +80,20 @@ export default function Home() {
     return '#22c55e';               // verde
   };
 
-  /**
-   * Retorna un emoji motivacional según el nivel de racha.
-   */
   const getStreakEmoji = (streak: number): string => {
     if (streak === 0) return '😴';
     if (streak < 10)  return '🌱';
     if (streak < 30)  return '🔥';
     if (streak < 60)  return '⚡';
     return '🏆';
+  };
+
+  /**
+   * Función para cerrar sesión (Limpieza de token).
+   */
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    router.push('/Login');
   };
 
   //#endregion
@@ -99,7 +109,7 @@ export default function Home() {
     }}>
       <div style={{ maxWidth: '720px', margin: '0 auto' }}>
 
-        {/* ── ENCABEZADO con botón de navegación al Login ── */}
+        {/* ── ENCABEZADO con Logout ── */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
           <div>
             <h1 style={{
@@ -110,22 +120,21 @@ export default function Home() {
               HABITS TRACKER
             </h1>
             <p style={{ color: '#94a3b8', marginTop: '4px', fontSize: '0.9rem' }}>
-              Método de los 66 días — Hábitos Atómicos
+              Método de los 66 días — Hábitos Atómicos 
             </p>
           </div>
 
-          {/* Botón para navegar al Login */}
-          <button onClick={() => router.push('/Login')} style={{
+          <button onClick={handleLogout} style={{
             padding: '8px 18px', borderRadius: '10px',
-            border: '1px solid rgba(167,139,250,0.4)',
-            background: 'rgba(167,139,250,0.1)', color: '#c4b5fd',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            background: 'rgba(239, 68, 68, 0.1)', color: '#fca5a5',
             fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600
           }}>
-            → Ir al Login
+            Cerrar Sesión
           </button>
         </div>
 
-        {/* ── MENSAJE DE FEEDBACK al presionar Done ── */}
+        {/* ── MENSAJE DE FEEDBACK ── */}
         {doneMessage && (
           <div style={{
             background: 'rgba(167,139,250,0.15)', border: '1px solid #a78bfa',
@@ -147,7 +156,7 @@ export default function Home() {
           <form onSubmit={handleAddHabit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <input
               type="text"
-              placeholder="Título del hábito (ej. Leer)"
+              placeholder="Título del hábito"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -160,7 +169,7 @@ export default function Home() {
             />
             <input
               type="text"
-              placeholder="Descripción breve"
+              placeholder="Descripción"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               style={{
@@ -175,15 +184,10 @@ export default function Home() {
               background: 'linear-gradient(90deg, #7c3aed, #4f46e5)',
               color: '#fff', fontWeight: 700, fontSize: '1rem', cursor: 'pointer'
             }}>
-              + Crear Hábito
+              + Crear Hábito 
             </button>
           </form>
         </section>
-
-        {/* Indicador de carga mientras se obtienen los hábitos */}
-        {status === 'loading' && (
-          <p style={{ textAlign: 'center', color: '#94a3b8' }}>Cargando hábitos...</p>
-        )}
 
         {/* ── LISTA DE TARJETAS DE HÁBITOS ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -191,7 +195,6 @@ export default function Home() {
             const streak     = habit.streak || 0;
             const percentage = Math.min((streak / 66) * 100, 100);
             const barColor   = getBarColor(streak);
-            const emoji      = getStreakEmoji(streak);
 
             return (
               <div key={habit._id} style={{
@@ -199,78 +202,50 @@ export default function Home() {
                 border: '1px solid rgba(255,255,255,0.1)',
                 borderRadius: '20px', padding: '24px'
               }}>
-
-                {/* Título, descripción y botón Done */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
                   <div>
                     <h2 style={{ margin: '0 0 6px', fontSize: '1.4rem', fontWeight: 800 }}>
-                      {emoji} {habit.title}
+                      {getStreakEmoji(streak)} {habit.title}
                     </h2>
                     <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.95rem' }}>
                       {habit.description}
                     </p>
                   </div>
-
-                  {/* Botón Done: envía la acción al backend para registrar el día */}
                   <button onClick={() => handleDone(habit._id)} style={{
                     padding: '10px 22px', borderRadius: '12px', border: 'none',
                     background: 'linear-gradient(90deg, #059669, #10b981)',
                     color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer',
-                    boxShadow: '0 4px 15px rgba(16,185,129,0.3)',
-                    marginLeft: '16px', whiteSpace: 'nowrap'
+                    boxShadow: '0 4px 15px rgba(16,185,129,0.3)', marginLeft: '16px'
                   }}>
                     ✓ Done
                   </button>
                 </div>
 
-                {/* Barra de progreso dinámica: cambia de color según la racha */}
+                {/* Barra de progreso dinámica  */}
                 <div>
-                  <div style={{
-                    display: 'flex', justifyContent: 'space-between',
-                    fontSize: '0.85rem', color: '#94a3b8', marginBottom: '8px', fontWeight: 600
-                  }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '8px' }}>
                     <span>Día {streak} de 66</span>
                     <span style={{ color: barColor }}>{percentage.toFixed(1)}%</span>
                   </div>
-
-                  {/* Contenedor de la barra */}
-                  <div style={{
-                    width: '100%', height: '10px',
-                    background: 'rgba(255,255,255,0.1)',
-                    borderRadius: '999px', overflow: 'hidden'
-                  }}>
-                    {/* Relleno animado que crece con la racha */}
+                  <div style={{ width: '100%', height: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '999px', overflow: 'hidden' }}>
                     <div style={{
-                      width: `${percentage}%`, height: '100%',
-                      background: barColor, borderRadius: '999px',
-                      transition: 'width 0.8s ease, background 0.8s ease',
-                      boxShadow: `0 0 8px ${barColor}`
+                      width: `${percentage}%`, height: '100%', background: barColor, 
+                      transition: 'width 0.8s ease, background 0.8s ease', boxShadow: `0 0 8px ${barColor}`
                     }} />
                   </div>
                 </div>
 
-                {/* Botón para eliminar el hábito de MongoDB */}
                 <div style={{ marginTop: '16px', textAlign: 'right' }}>
                   <button onClick={() => dispatch(deleteHabit(habit._id))} style={{
-                    background: 'transparent', border: 'none', color: '#64748b',
-                    fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline'
+                    background: 'transparent', border: 'none', color: '#64748b', fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline'
                   }}>
                     Eliminar hábito
                   </button>
                 </div>
-
               </div>
             );
           })}
         </div>
-
-        {/* Mensaje cuando no hay hábitos registrados */}
-        {items && items.length === 0 && status !== 'loading' && (
-          <div style={{ textAlign: 'center', color: '#475569', marginTop: '40px' }}>
-            <p style={{ fontSize: '2rem' }}>🌱</p>
-            <p>Aún no tienes hábitos. ¡Crea el primero!</p>
-          </div>
-        )}
 
       </div>
     </main>
