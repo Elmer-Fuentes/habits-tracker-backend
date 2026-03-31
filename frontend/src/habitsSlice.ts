@@ -1,42 +1,31 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import Cookies from 'js-cookie';
 
-// ============================================================
-// Archivo: habitsSlice.ts
-// Descripción: Estado global de hábitos con Redux Toolkit.
-//              Actualizado: Librería Cookies y Tipado Headers (Semana 5).
-// ============================================================
+// URL base del backend (cambia esto cuando hagas deploy en Vercel)
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-//#region Utilidad para obtener Token con Tipado Correcto
-/**
- * Retorna el header de autorización tipado como HeadersInit para evitar
- * el error de sobrecarga en la función fetch.
- */
+// Utilidad para obtener el token desde localStorage
 const getAuthHeader = (): Record<string, string> => {
-  const token = Cookies.get('token'); // Punto 23: Uso de librería de cookies
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
-//#endregion
 
-//#region 1. ACCIONES ASÍNCRONAS (Thunks - conexión al backend)
-
-// 1.1 Obtener todos los hábitos desde MongoDB
+// GET /api/habits
 export const fetchHabits = createAsyncThunk('habits/fetchHabits', async () => {
-  const response = await fetch('http://localhost:3001/habits', {
+  const response = await fetch(`${API_URL}/api/habits`, {
     headers: getAuthHeader()
   });
   return response.json();
 });
 
-// 1.2 Crear un nuevo hábito en MongoDB (Punto 24)
+// POST /api/habits
 export const addHabit = createAsyncThunk(
   'habits/addHabit',
   async (newHabit: { title: string; description: string }) => {
-    const response = await fetch('http://localhost:3001/habits', {
+    const response = await fetch(`${API_URL}/api/habits`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        ...getAuthHeader() 
+        ...getAuthHeader()
       },
       body: JSON.stringify(newHabit),
     });
@@ -44,11 +33,11 @@ export const addHabit = createAsyncThunk(
   }
 );
 
-// 1.3 Marcar hábito como completado hoy (Punto 18: Lógica de racha)
+// PUT /api/habits/:id/done
 export const markHabitDone = createAsyncThunk(
   'habits/markDone',
   async (habitId: string) => {
-    const response = await fetch(`http://localhost:3001/habits/${habitId}/done`, {
+    const response = await fetch(`${API_URL}/api/habits/${habitId}/done`, {
       method: 'PUT',
       headers: getAuthHeader()
     });
@@ -56,21 +45,17 @@ export const markHabitDone = createAsyncThunk(
   }
 );
 
-// 1.4 Eliminar un hábito de MongoDB
+// DELETE /api/habits/:id
 export const deleteHabit = createAsyncThunk(
   'habits/deleteHabit',
   async (habitId: string) => {
-    await fetch(`http://localhost:3001/habits/${habitId}`, {
+    await fetch(`${API_URL}/api/habits/${habitId}`, {
       method: 'DELETE',
       headers: getAuthHeader()
     });
     return habitId;
   }
 );
-
-//#endregion
-
-//#region 2. SLICE - ESTADO GLOBAL DE HÁBITOS
 
 const habitsSlice = createSlice({
   name: 'habits',
@@ -80,39 +65,30 @@ const habitsSlice = createSlice({
     error: null as string | null,
   },
   reducers: {},
-
   extraReducers: (builder) => {
-    //#region Casos de respuesta
+    builder.addCase(fetchHabits.pending, (state) => {
+      state.status = 'loading';
+    });
     builder.addCase(fetchHabits.fulfilled, (state, action) => {
       state.items = Array.isArray(action.payload) ? action.payload : [];
       state.status = 'succeeded';
-    });
-    builder.addCase(fetchHabits.pending, (state) => {
-      state.status = 'loading';
     });
     builder.addCase(fetchHabits.rejected, (state) => {
       state.status = 'failed';
       state.error = 'No se pudo conectar con el servidor';
     });
-
     builder.addCase(markHabitDone.fulfilled, (state, action) => {
       const updatedHabit = action.payload.habit || action.payload;
       const index = state.items.findIndex((h: any) => h._id === updatedHabit._id);
-      if (index !== -1) {
-        state.items[index] = updatedHabit;
-      }
+      if (index !== -1) state.items[index] = updatedHabit;
     });
-
     builder.addCase(addHabit.fulfilled, (state, action) => {
       state.items.push(action.payload);
     });
-
     builder.addCase(deleteHabit.fulfilled, (state, action) => {
       state.items = state.items.filter((h: any) => h._id !== action.payload);
     });
-    //#endregion
   },
 });
 
 export default habitsSlice.reducer;
-//#endregion

@@ -1,74 +1,21 @@
-// ============================================================
-// Archivo: app.js
-// Descripción: Configuración principal del servidor Express.
-//              Define middlewares, rutas y manejo de errores.
-// Autor: Habits Tracker
-// ============================================================
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+require('dotenv').config();
 
-// #region Importaciones
+const app = express();
 
-require('./config/database'); // Conexión a MongoDB
-
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
-var cors = require('cors'); // Permite peticiones desde el frontend (Next.js)
-
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
-
-// #endregion
-
-// #region Inicialización de la aplicación
-
-var app = express();
-
-// #endregion
-
-// #region Middlewares
-
-// CORS debe configurarse antes de definir las rutas para evitar bloqueos
 app.use(cors());
-
-// Motor de vistas
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'pug');
-
-// Middlewares estándar de Express
-app.use(logger('dev'));
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
 
-// #endregion
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('✅ MongoDB conectado'))
+  .catch(err => console.log('❌ Error MongoDB:', err.message));
 
-// #region Rutas
+app.use('/api/auth', require('./routes/users'));
+app.use('/api/habits', require('./routes/habits'));
 
-app.use('/', indexRouter);       // Rutas de hábitos (Ahora protegidas por auth)
-app.use('/users', usersRouter);  // Rutas de usuarios (Registro y Login)
-
-// #endregion
-
-// #region Manejo de errores
-
-// Captura rutas no encontradas y las convierte en error 404
-app.use(function (req, res, next) {
-  next(createError(404));
-});
-
-// Manejador global de errores
-// En desarrollo muestra el detalle del error, en producción lo oculta
-app.use(function (err, req, res, next) {
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
-
-  res.status(err.status || 500);
-  res.render('error');
-});
-
-// #endregion
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log(`🚀 Servidor en puerto ${PORT}`));
 
 module.exports = app;

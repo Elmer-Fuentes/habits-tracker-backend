@@ -40,12 +40,12 @@ export default function LoginPage() {
     setLoading(true);
 
     // Selecciona el endpoint según si es login o registro
-    const endpoint = isLogin
-      ? 'http://localhost:3001/users/login'
-      : 'http://localhost:3001/users/register';
-
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const authEndpoint = isLogin
+  ? `${API_URL}/api/auth/login`
+  : `${API_URL}/api/auth/register`;
     try {
-      const response = await fetch(endpoint, {
+  const response = await fetch(authEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
